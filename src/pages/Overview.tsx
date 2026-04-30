@@ -6,7 +6,7 @@ import {
 import { useStore } from '../store'
 import StatCard from '../components/StatCard'
 import Panel from '../components/Panel'
-import { fmt, fmtExact, CHART_COLORS } from '../utils'
+import { fmt, fmtExact, fmtTokens, CHART_COLORS } from '../utils'
 
 export default function Overview() {
   const data = useStore(s => s.data)!
@@ -62,6 +62,13 @@ export default function Overview() {
           value={fmt(data.wsCost)}
           sub={`${((data.wsCost / data.totalCost) * 100).toFixed(1)}% of total`}
         />
+        {data.totalTokens > 0 && (
+          <StatCard
+            label="Total Tokens"
+            value={fmtTokens(data.totalTokens)}
+            sub={`$${(data.tokenCost / data.totalTokens * 1000).toFixed(4)} per 1k tokens`}
+          />
+        )}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 20, marginBottom: 20 }}>

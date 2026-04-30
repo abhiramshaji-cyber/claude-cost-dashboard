@@ -6,6 +6,7 @@ export interface RawRow {
   usage_type: string
   context_window: string
   token_type: string
+  tokens: string
   cost_usd: string
   list_price_usd: string
   cost_type: string
@@ -19,6 +20,7 @@ export interface UserSummary {
   total: number
   token: number
   ws: number
+  totalTokens: number
   models: Record<string, number>
   dailyCost: Record<string, number>
   tokenTypes: Record<string, number>
@@ -29,6 +31,7 @@ export interface AppData {
   totalCost: number
   tokenCost: number
   wsCost: number
+  totalTokens: number
   modelTotals: Record<string, number>
   dailyTotals: Record<string, number>
   dates: string[]

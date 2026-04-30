@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store'
-import { fmt, fmtExact } from '../utils'
+import { fmt, fmtExact, fmtTokens } from '../utils'
 import type { UserSummary } from '../types'
 
-type SortKey = 'total' | 'token' | 'ws' | 'displayName'
+type SortKey = 'total' | 'token' | 'ws' | 'totalTokens' | 'displayName'
 
 const PAGE_SIZE = 25
 
@@ -108,6 +108,11 @@ export default function Users() {
                 <th style={{ ...th, color: sortKey === 'ws' ? 'var(--accent)' : 'var(--muted)' }} onClick={() => toggleSort('ws')}>
                   Web Search {arrow('ws')}
                 </th>
+                {data.totalTokens > 0 && (
+                  <th style={{ ...th, color: sortKey === 'totalTokens' ? 'var(--accent)' : 'var(--muted)' }} onClick={() => toggleSort('totalTokens')}>
+                    Total Tokens {arrow('totalTokens')}
+                  </th>
+                )}
                 <th style={th}>Share of Total</th>
                 <th style={th}>Models</th>
               </tr>
@@ -119,6 +124,7 @@ export default function Users() {
                   rank={page * PAGE_SIZE + i + 1}
                   user={u}
                   totalCost={data.totalCost}
+                  showTokens={data.totalTokens > 0}
                   td={td}
                   onClick={() => navigate(`/users/${encodeURIComponent(u.user)}`)}
                 />
@@ -158,11 +164,12 @@ export default function Users() {
 }
 
 function UserRow({
-  rank, user, totalCost, td, onClick,
+  rank, user, totalCost, showTokens, td, onClick,
 }: {
   rank: number
   user: UserSummary
   totalCost: number
+  showTokens: boolean
   td: React.CSSProperties
   onClick: () => void
 }) {
@@ -189,6 +196,16 @@ function UserRow({
       <td style={{ ...td, fontWeight: 600 }}>{fmt(user.total)}</td>
       <td style={{ ...td, color: 'var(--muted)' }}>{fmt(user.token)}</td>
       <td style={{ ...td, color: 'var(--muted)' }}>{fmtExact(user.ws)}</td>
+      {showTokens && (
+        <td style={{ ...td, color: 'var(--muted)' }}>
+          <div>{fmtTokens(user.totalTokens)}</div>
+          {user.totalTokens > 0 && (
+            <div style={{ fontSize: 11, marginTop: 2, color: 'var(--muted)', opacity: 0.7 }}>
+              ${(user.token / user.totalTokens * 1000).toFixed(4)}/1k
+            </div>
+          )}
+        </td>
+      )}
       <td style={td}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{

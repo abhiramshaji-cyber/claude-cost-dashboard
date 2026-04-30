@@ -19,6 +19,13 @@ export function fmt(n: number): string {
   return '$' + n.toFixed(2)
 }
 
+export function fmtTokens(n: number): string {
+  if (n >= 1_000_000_000) return (n / 1_000_000_000).toFixed(2) + 'B'
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(2) + 'M'
+  if (n >= 1_000) return (n / 1_000).toFixed(1) + 'k'
+  return String(n)
+}
+
 export function fmtExact(n: number): string {
   return '$' + n.toFixed(2)
 }
@@ -27,7 +34,7 @@ export function processRows(rows: RawRow[]): AppData {
   const userMap: Record<string, UserSummary> = {}
   const modelTotals: Record<string, number> = {}
   const dailyTotals: Record<string, number> = {}
-  let totalCost = 0, tokenCost = 0, wsCost = 0
+  let totalCost = 0, tokenCost = 0, wsCost = 0, totalTokens = 0
 
   for (const r of rows) {
     const cost = parseFloat(r.cost_usd) || 0
@@ -37,21 +44,24 @@ export function processRows(rows: RawRow[]): AppData {
     const model = r.model === '--' ? 'Web Search' : r.model
     const date = r.usage_date_utc
     const isWS = r.cost_type === 'web_search'
+    const tokens = parseInt(r.tokens) || 0
 
     totalCost += cost
     if (isWS) wsCost += cost; else tokenCost += cost
+    if (!isWS) totalTokens += tokens
 
     if (!userMap[user]) {
       userMap[user] = {
         user,
         displayName: toDisplayName(user),
-        total: 0, token: 0, ws: 0,
+        total: 0, token: 0, ws: 0, totalTokens: 0,
         models: {}, dailyCost: {}, tokenTypes: {},
       }
     }
     const u = userMap[user]
     u.total += cost
     if (isWS) u.ws += cost; else u.token += cost
+    if (!isWS) u.totalTokens += tokens
     u.models[model] = (u.models[model] || 0) + cost
     u.dailyCost[date] = (u.dailyCost[date] || 0) + cost
     if (!isWS) u.tokenTypes[r.token_type] = (u.tokenTypes[r.token_type] || 0) + cost
@@ -64,7 +74,7 @@ export function processRows(rows: RawRow[]): AppData {
   const dates = Object.keys(dailyTotals).sort()
 
   return {
-    users, totalCost, tokenCost, wsCost,
+    users, totalCost, tokenCost, wsCost, totalTokens,
     modelTotals, dailyTotals, dates,
     periodStart: dates[0] || '', periodEnd: dates[dates.length - 1] || '',
   }

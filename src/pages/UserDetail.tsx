@@ -7,7 +7,7 @@ import {
 import { useStore } from '../store'
 import Panel from '../components/Panel'
 import StatCard from '../components/StatCard'
-import { fmt, fmtExact, CHART_COLORS } from '../utils'
+import { fmt, fmtExact, fmtTokens, CHART_COLORS } from '../utils'
 
 export default function UserDetail() {
   const { name } = useParams<{ name: string }>()
@@ -76,6 +76,13 @@ export default function UserDetail() {
         <StatCard label="Share of Total" value={shareOfTotal + '%'} sub={fmtExact(data.totalCost) + ' total'} />
         <StatCard label="Models Used" value={String(Object.keys(user.models).length)} sub="distinct models" />
         <StatCard label="Active Days" value={String(Object.keys(user.dailyCost).length)} sub="days with spend" />
+        {user.totalTokens > 0 && (
+          <StatCard
+            label="Total Tokens"
+            value={fmtTokens(user.totalTokens)}
+            sub={`$${(user.token / user.totalTokens * 1000).toFixed(4)} per 1k`}
+          />
+        )}
       </div>
 
       <Panel title="Daily Spend" style={{ marginBottom: 20 }}>
