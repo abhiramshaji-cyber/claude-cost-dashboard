@@ -21,9 +21,10 @@ export interface UserSummary {
   token: number
   ws: number
   totalTokens: number
+  tokenTypeCounts: Record<string, number>  // token COUNT by type (input/output/cache_read/cache_creation)
   models: Record<string, number>
   dailyCost: Record<string, number>
-  tokenTypes: Record<string, number>
+  tokenTypes: Record<string, number>       // token COST by type
 }
 
 export interface AppData {

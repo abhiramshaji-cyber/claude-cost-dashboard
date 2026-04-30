@@ -5,6 +5,7 @@ import Upload from './pages/Upload'
 import Overview from './pages/Overview'
 import Users from './pages/Users'
 import UserDetail from './pages/UserDetail'
+import Tokens from './pages/Tokens'
 
 function Inner() {
   const data = useStore(s => s.data)
@@ -18,6 +19,7 @@ function Inner() {
         <Route path="overview" element={<Overview />} />
         <Route path="users" element={<Users />} />
         <Route path="users/:name" element={<UserDetail />} />
+        <Route path="tokens" element={<Tokens />} />
         <Route path="*" element={<Navigate to="/overview" replace />} />
       </Route>
     </Routes>

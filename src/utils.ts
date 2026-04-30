@@ -55,13 +55,17 @@ export function processRows(rows: RawRow[]): AppData {
         user,
         displayName: toDisplayName(user),
         total: 0, token: 0, ws: 0, totalTokens: 0,
+        tokenTypeCounts: {},
         models: {}, dailyCost: {}, tokenTypes: {},
       }
     }
     const u = userMap[user]
     u.total += cost
     if (isWS) u.ws += cost; else u.token += cost
-    if (!isWS) u.totalTokens += tokens
+    if (!isWS) {
+      u.totalTokens += tokens
+      u.tokenTypeCounts[r.token_type] = (u.tokenTypeCounts[r.token_type] || 0) + tokens
+    }
     u.models[model] = (u.models[model] || 0) + cost
     u.dailyCost[date] = (u.dailyCost[date] || 0) + cost
     if (!isWS) u.tokenTypes[r.token_type] = (u.tokenTypes[r.token_type] || 0) + cost

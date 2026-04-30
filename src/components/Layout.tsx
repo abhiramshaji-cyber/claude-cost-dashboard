@@ -4,6 +4,7 @@ import { useStore } from '../store'
 const navItems = [
   { to: '/overview', label: 'Overview' },
   { to: '/users', label: 'Users' },
+  { to: '/tokens', label: 'Tokens' },
 ]
 
 export default function Layout() {
