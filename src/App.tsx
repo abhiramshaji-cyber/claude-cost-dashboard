@@ -6,22 +6,28 @@ import Overview from './pages/Overview'
 import Users from './pages/Users'
 import UserDetail from './pages/UserDetail'
 
-export default function App() {
+function Inner() {
   const data = useStore(s => s.data)
 
   if (!data) return <Upload />
 
   return (
+    <Routes>
+      <Route path="/" element={<Layout />}>
+        <Route index element={<Navigate to="/overview" replace />} />
+        <Route path="overview" element={<Overview />} />
+        <Route path="users" element={<Users />} />
+        <Route path="users/:name" element={<UserDetail />} />
+        <Route path="*" element={<Navigate to="/overview" replace />} />
+      </Route>
+    </Routes>
+  )
+}
+
+export default function App() {
+  return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Layout />}>
-          <Route index element={<Navigate to="/overview" replace />} />
-          <Route path="overview" element={<Overview />} />
-          <Route path="users" element={<Users />} />
-          <Route path="users/:name" element={<UserDetail />} />
-          <Route path="*" element={<Navigate to="/overview" replace />} />
-        </Route>
-      </Routes>
+      <Inner />
     </BrowserRouter>
   )
 }
