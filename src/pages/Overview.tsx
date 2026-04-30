@@ -73,7 +73,7 @@ export default function Overview() {
               <Tooltip
                 contentStyle={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8 }}
                 labelStyle={{ color: 'var(--text)', fontSize: 12 }}
-                formatter={(v: number) => fmtExact(v)}
+                formatter={(v) => fmtExact(Number(v))}
               />
               <Legend wrapperStyle={{ fontSize: 11, color: 'var(--muted)', paddingTop: 8 }} />
               <Bar dataKey="token" name="Token" stackId="a" fill="#6366f1" radius={[0, 0, 0, 0]} />
@@ -101,9 +101,9 @@ export default function Overview() {
               </Pie>
               <Tooltip
                 contentStyle={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8 }}
-                formatter={(v: number, _: string, entry: { payload: { fullName: string } }) => [
-                  fmtExact(v) + ` (${((v / data.totalCost) * 100).toFixed(1)}%)`,
-                  entry.payload.fullName,
+                formatter={(v, _, entry) => [
+                  fmtExact(Number(v)) + ` (${((Number(v) / data.totalCost) * 100).toFixed(1)}%)`,
+                  (entry as { payload: { fullName: string } }).payload.fullName,
                 ]}
               />
               <Legend
@@ -135,7 +135,7 @@ export default function Overview() {
             />
             <Tooltip
               contentStyle={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8 }}
-              formatter={(v: number) => [fmtExact(v), 'Cost']}
+              formatter={(v) => [fmtExact(Number(v)), 'Cost']}
             />
             <Line
               type="monotone"

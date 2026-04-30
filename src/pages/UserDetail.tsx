@@ -86,7 +86,7 @@ export default function UserDetail() {
             <YAxis tick={{ fill: 'var(--muted)', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `$${v}`} width={52} />
             <Tooltip
               contentStyle={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8 }}
-              formatter={(v: number) => [fmtExact(v), 'Cost']}
+              formatter={(v) => [fmtExact(Number(v)), 'Cost']}
             />
             <Line type="monotone" dataKey="cost" stroke="#6366f1" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
           </LineChart>
@@ -102,7 +102,7 @@ export default function UserDetail() {
               </Pie>
               <Tooltip
                 contentStyle={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8 }}
-                formatter={(v: number) => [fmtExact(v)]}
+                formatter={(v) => [fmtExact(Number(v))]}
               />
               <Legend iconSize={10} wrapperStyle={{ fontSize: 11, color: 'var(--muted)' }} />
             </PieChart>
@@ -116,7 +116,7 @@ export default function UserDetail() {
               <YAxis type="category" dataKey="name" tick={{ fill: 'var(--text)', fontSize: 11 }} axisLine={false} tickLine={false} width={120} />
               <Tooltip
                 contentStyle={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8 }}
-                formatter={(v: number) => [fmtExact(v)]}
+                formatter={(v) => [fmtExact(Number(v))]}
               />
               <Bar dataKey="value" fill="#06b6d4" radius={[0, 4, 4, 0]} />
             </BarChart>
