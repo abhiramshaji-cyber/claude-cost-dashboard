@@ -9,15 +9,17 @@ import Panel from '../components/Panel'
 import { fmtTokens, fmtExact, CHART_COLORS } from '../utils'
 import type { UserSummary } from '../types'
 
-type SortKey = 'totalTokens' | 'input' | 'output' | 'cache_read' | 'cache_creation' | 'costPer1k' | 'displayName'
+// Colors keyed to actual CSV token_type values
+const TYPE_COLOR: Record<string, string> = {
+  input_no_cache:       '#6366f1',
+  input_cache_read:     '#10b981',
+  input_cache_write_5m: '#f59e0b',
+  input_cache_write_1h: '#f97316',
+  output:               '#06b6d4',
+}
 
-const PAGE_SIZE = 25
-
-const TOKEN_TYPE_COLORS: Record<string, string> = {
-  input: '#6366f1',
-  output: '#06b6d4',
-  cache_read: '#10b981',
-  cache_creation: '#f59e0b',
+function typeLabel(t: string) {
+  return t.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
 }
 
 function getCount(u: UserSummary, type: string) {
@@ -25,9 +27,13 @@ function getCount(u: UserSummary, type: string) {
 }
 
 function costPer1k(u: UserSummary) {
-  if (!u.totalTokens) return 0
-  return (u.token / u.totalTokens) * 1000
+  return u.totalTokens > 0 ? (u.token / u.totalTokens) * 1000 : 0
 }
+
+type BaseSortKey = 'totalTokens' | 'costPer1k' | 'displayName'
+type SortKey = BaseSortKey | string
+
+const PAGE_SIZE = 25
 
 export default function Tokens() {
   const data = useStore(s => s.data)!
@@ -37,33 +43,37 @@ export default function Tokens() {
   const [query, setQuery] = useState('')
   const [page, setPage] = useState(0)
 
+  // Discover all token types present in the data, in a logical display order
   const tokenTypes = useMemo(() => {
-    const types = new Set<string>()
-    for (const u of data.users) Object.keys(u.tokenTypeCounts).forEach(t => types.add(t))
-    return Array.from(types).sort()
+    const order = ['input_no_cache', 'input_cache_read', 'input_cache_write_5m', 'input_cache_write_1h', 'output']
+    const present = new Set<string>()
+    for (const u of data.users) Object.keys(u.tokenTypeCounts).forEach(t => present.add(t))
+    const ordered = order.filter(t => present.has(t))
+    for (const t of present) if (!ordered.includes(t)) ordered.push(t)
+    return ordered
   }, [data.users])
+
+  const usersWithTokens = useMemo(() =>
+    data.users.filter(u => u.totalTokens > 0),
+    [data.users]
+  )
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase()
-    return data.users.filter(u =>
-      u.totalTokens > 0 && (!q || u.displayName.toLowerCase().includes(q) || u.user.includes(q))
+    return usersWithTokens.filter(u =>
+      !q || u.displayName.toLowerCase().includes(q) || u.user.includes(q)
     )
-  }, [data.users, query])
+  }, [usersWithTokens, query])
 
   const sorted = useMemo(() => {
     return [...filtered].sort((a, b) => {
-      let av: number, bv: number
-      if (sortKey === 'displayName') {
-        return sortAsc
-          ? a.displayName.localeCompare(b.displayName)
-          : b.displayName.localeCompare(a.displayName)
-      }
-      if (sortKey === 'costPer1k') { av = costPer1k(a); bv = costPer1k(b) }
-      else if (sortKey === 'input' || sortKey === 'output' || sortKey === 'cache_read' || sortKey === 'cache_creation') {
-        av = getCount(a, sortKey); bv = getCount(b, sortKey)
-      }
-      else { av = a.totalTokens; bv = b.totalTokens }
-      return sortAsc ? av - bv : bv - av
+      let av: number | string, bv: number | string
+      if (sortKey === 'displayName') { av = a.displayName; bv = b.displayName }
+      else if (sortKey === 'costPer1k') { av = costPer1k(a); bv = costPer1k(b) }
+      else if (sortKey === 'totalTokens') { av = a.totalTokens; bv = b.totalTokens }
+      else { av = getCount(a, sortKey); bv = getCount(b, sortKey) }
+      if (typeof av === 'string') return sortAsc ? av.localeCompare(bv as string) : (bv as string).localeCompare(av)
+      return sortAsc ? (av as number) - (bv as number) : (bv as number) - (av as number)
     })
   }, [filtered, sortKey, sortAsc])
 
@@ -81,18 +91,15 @@ export default function Tokens() {
     return <span>{sortAsc ? '↑' : '↓'}</span>
   }
 
-  const topN = data.users.filter(u => u.totalTokens > 0).slice(0, 15)
-  const chartData = topN.map(u => ({
-    name: u.displayName.split(' ')[0] + ' ' + (u.displayName.split(' ')[1]?.[0] ?? '') + '.',
-    input: getCount(u, 'input'),
-    output: getCount(u, 'output'),
-    cache_read: getCount(u, 'cache_read'),
-    cache_creation: getCount(u, 'cache_creation'),
-  }))
+  const chartData = usersWithTokens.slice(0, 15).map(u => {
+    const entry: Record<string, string | number> = {
+      name: u.displayName.split(' ')[0] + ' ' + (u.displayName.split(' ')[1]?.[0] ?? '') + '.',
+    }
+    for (const t of tokenTypes) entry[t] = getCount(u, t)
+    return entry
+  })
 
-  const totalTokens = data.totalTokens
-  const usersWithTokens = data.users.filter(u => u.totalTokens > 0)
-  const avgTokens = usersWithTokens.length ? totalTokens / usersWithTokens.length : 0
+  const avgTokens = usersWithTokens.length ? data.totalTokens / usersWithTokens.length : 0
   const topTokenUser = usersWithTokens[0]
   const bestEfficiency = [...usersWithTokens]
     .filter(u => u.token > 0)
@@ -119,10 +126,19 @@ export default function Tokens() {
     fontVariantNumeric: 'tabular-nums',
   }
 
+  if (data.totalTokens === 0) {
+    return (
+      <div style={{ padding: '48px 32px', color: 'var(--muted)', textAlign: 'center' }}>
+        <div style={{ fontSize: 15, marginBottom: 8 }}>No token data available</div>
+        <div style={{ fontSize: 13 }}>Token counts are derived from model pricing. Ensure the CSV contains recognised model names.</div>
+      </div>
+    )
+  }
+
   return (
     <div style={{ padding: '24px 32px 48px' }}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 14, marginBottom: 28 }}>
-        <StatCard label="Total Tokens" value={fmtTokens(totalTokens)} sub="all users combined" />
+        <StatCard label="Total Tokens" value={fmtTokens(data.totalTokens)} sub="derived from model pricing" />
         <StatCard label="Avg / User" value={fmtTokens(Math.round(avgTokens))} sub={`across ${usersWithTokens.length} users`} />
         <StatCard
           label="Top Token User"
@@ -137,7 +153,7 @@ export default function Tokens() {
       </div>
 
       <Panel title="Token Usage by Type — Top Users" style={{ marginBottom: 20 }}>
-        <ResponsiveContainer width="100%" height={320}>
+        <ResponsiveContainer width="100%" height={Math.max(260, usersWithTokens.slice(0, 15).length * 22 + 60)}>
           <BarChart data={chartData} layout="vertical" margin={{ left: 0, right: 20, top: 0, bottom: 0 }}>
             <XAxis
               type="number"
@@ -157,17 +173,20 @@ export default function Tokens() {
             <Tooltip
               contentStyle={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8 }}
               labelStyle={{ color: 'var(--text)', fontSize: 12 }}
-              formatter={(v) => fmtTokens(Number(v))}
+              formatter={(v, name) => [fmtTokens(Number(v)), typeLabel(String(name))]}
             />
-            <Legend wrapperStyle={{ fontSize: 11, color: 'var(--muted)', paddingTop: 8 }} />
-            {tokenTypes.map(t => (
+            <Legend
+              formatter={v => typeLabel(String(v))}
+              wrapperStyle={{ fontSize: 11, color: 'var(--muted)', paddingTop: 8 }}
+            />
+            {tokenTypes.map((t, i) => (
               <Bar
                 key={t}
                 dataKey={t}
-                name={t.replace(/_/g, ' ')}
+                name={t}
                 stackId="a"
-                fill={TOKEN_TYPE_COLORS[t] ?? CHART_COLORS[tokenTypes.indexOf(t) % CHART_COLORS.length]}
-                radius={tokenTypes.indexOf(t) === tokenTypes.length - 1 ? [0, 3, 3, 0] : [0, 0, 0, 0]}
+                fill={TYPE_COLOR[t] ?? CHART_COLORS[i % CHART_COLORS.length]}
+                radius={i === tokenTypes.length - 1 ? [0, 3, 3, 0] : [0, 0, 0, 0]}
               />
             ))}
           </BarChart>
@@ -207,38 +226,28 @@ export default function Tokens() {
                 <th style={{ ...th, color: sortKey === 'totalTokens' ? 'var(--accent)' : 'var(--muted)' }} onClick={() => toggleSort('totalTokens')}>
                   Total Tokens {arrow('totalTokens')}
                 </th>
-                {tokenTypes.includes('input') && (
-                  <th style={{ ...th, color: sortKey === 'input' ? 'var(--accent)' : 'var(--muted)' }} onClick={() => toggleSort('input')}>
-                    Input {arrow('input')}
+                {tokenTypes.map(t => (
+                  <th
+                    key={t}
+                    style={{ ...th, color: sortKey === t ? 'var(--accent)' : 'var(--muted)' }}
+                    onClick={() => toggleSort(t)}
+                  >
+                    {typeLabel(t)} {arrow(t)}
                   </th>
-                )}
-                {tokenTypes.includes('output') && (
-                  <th style={{ ...th, color: sortKey === 'output' ? 'var(--accent)' : 'var(--muted)' }} onClick={() => toggleSort('output')}>
-                    Output {arrow('output')}
-                  </th>
-                )}
-                {tokenTypes.includes('cache_read') && (
-                  <th style={{ ...th, color: sortKey === 'cache_read' ? 'var(--accent)' : 'var(--muted)' }} onClick={() => toggleSort('cache_read')}>
-                    Cache Read {arrow('cache_read')}
-                  </th>
-                )}
-                {tokenTypes.includes('cache_creation') && (
-                  <th style={{ ...th, color: sortKey === 'cache_creation' ? 'var(--accent)' : 'var(--muted)' }} onClick={() => toggleSort('cache_creation')}>
-                    Cache Write {arrow('cache_creation')}
-                  </th>
-                )}
+                ))}
                 <th style={{ ...th, color: sortKey === 'costPer1k' ? 'var(--accent)' : 'var(--muted)' }} onClick={() => toggleSort('costPer1k')}>
                   Cost / 1k {arrow('costPer1k')}
                 </th>
-                <th style={th}>Total Cost</th>
+                <th style={th}>Token Cost</th>
               </tr>
             </thead>
             <tbody>
               {pageData.map((u, i) => {
                 const c1k = costPer1k(u)
-                const inputPct = u.totalTokens ? ((getCount(u, 'input') / u.totalTokens) * 100) : 0
-                const outputPct = u.totalTokens ? ((getCount(u, 'output') / u.totalTokens) * 100) : 0
-                const cacheReadPct = u.totalTokens ? ((getCount(u, 'cache_read') / u.totalTokens) * 100) : 0
+                const barSegments = tokenTypes.map(t => ({
+                  type: t,
+                  pct: u.totalTokens ? (getCount(u, t) / u.totalTokens) * 100 : 0,
+                }))
                 return (
                   <tr
                     key={u.user}
@@ -254,25 +263,24 @@ export default function Tokens() {
                     </td>
                     <td style={{ ...td, fontWeight: 600 }}>
                       <div>{fmtTokens(u.totalTokens)}</div>
-                      <div style={{ display: 'flex', gap: 2, marginTop: 4, height: 4, borderRadius: 2, overflow: 'hidden', width: 80 }}>
-                        {inputPct > 0 && <div style={{ width: `${inputPct}%`, background: TOKEN_TYPE_COLORS.input }} />}
-                        {outputPct > 0 && <div style={{ width: `${outputPct}%`, background: TOKEN_TYPE_COLORS.output }} />}
-                        {cacheReadPct > 0 && <div style={{ width: `${cacheReadPct}%`, background: TOKEN_TYPE_COLORS.cache_read }} />}
+                      <div style={{ display: 'flex', marginTop: 4, height: 4, borderRadius: 2, overflow: 'hidden', width: 80 }}>
+                        {barSegments.map(s => s.pct > 0 && (
+                          <div
+                            key={s.type}
+                            style={{ width: `${s.pct}%`, background: TYPE_COLOR[s.type] ?? '#6366f1' }}
+                          />
+                        ))}
                       </div>
                     </td>
-                    {tokenTypes.includes('input') && (
-                      <td style={{ ...td, color: 'var(--muted)' }}>{fmtTokens(getCount(u, 'input'))}</td>
-                    )}
-                    {tokenTypes.includes('output') && (
-                      <td style={{ ...td, color: 'var(--muted)' }}>{fmtTokens(getCount(u, 'output'))}</td>
-                    )}
-                    {tokenTypes.includes('cache_read') && (
-                      <td style={{ ...td, color: 'var(--muted)' }}>{fmtTokens(getCount(u, 'cache_read'))}</td>
-                    )}
-                    {tokenTypes.includes('cache_creation') && (
-                      <td style={{ ...td, color: 'var(--muted)' }}>{fmtTokens(getCount(u, 'cache_creation'))}</td>
-                    )}
-                    <td style={{ ...td, color: c1k < 0.001 ? '#10b981' : c1k > 0.01 ? '#ef4444' : 'var(--muted)' }}>
+                    {tokenTypes.map(t => (
+                      <td key={t} style={{ ...td, color: 'var(--muted)' }}>
+                        {fmtTokens(getCount(u, t))}
+                      </td>
+                    ))}
+                    <td style={{
+                      ...td,
+                      color: c1k < 0.0005 ? '#10b981' : c1k > 0.005 ? '#ef4444' : 'var(--muted)',
+                    }}>
                       ${c1k.toFixed(4)}
                     </td>
                     <td style={{ ...td, color: 'var(--muted)' }}>{fmtExact(u.token)}</td>

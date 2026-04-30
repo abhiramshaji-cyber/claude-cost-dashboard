@@ -6,7 +6,6 @@ export interface RawRow {
   usage_type: string
   context_window: string
   token_type: string
-  tokens: string
   cost_usd: string
   list_price_usd: string
   cost_type: string

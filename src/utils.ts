@@ -30,6 +30,44 @@ export function fmtExact(n: number): string {
   return '$' + n.toFixed(2)
 }
 
+// Prices in USD per million tokens (MTok)
+const MODEL_PRICING: Record<string, {
+  input: number
+  cache_write_5m: number
+  cache_write_1h: number
+  cache_read: number
+  output: number
+}> = {
+  'claude opus 4.7':   { input: 5,    cache_write_5m: 6.25,  cache_write_1h: 10,  cache_read: 0.50, output: 25   },
+  'claude opus 4.6':   { input: 5,    cache_write_5m: 6.25,  cache_write_1h: 10,  cache_read: 0.50, output: 25   },
+  'claude opus 4.5':   { input: 5,    cache_write_5m: 6.25,  cache_write_1h: 10,  cache_read: 0.50, output: 25   },
+  'claude opus 4.1':   { input: 15,   cache_write_5m: 18.75, cache_write_1h: 30,  cache_read: 1.50, output: 75   },
+  'claude opus 4':     { input: 15,   cache_write_5m: 18.75, cache_write_1h: 30,  cache_read: 1.50, output: 75   },
+  'claude opus 3':     { input: 15,   cache_write_5m: 18.75, cache_write_1h: 30,  cache_read: 1.50, output: 75   },
+  'claude sonnet 4.6': { input: 3,    cache_write_5m: 3.75,  cache_write_1h: 6,   cache_read: 0.30, output: 15   },
+  'claude sonnet 4.5': { input: 3,    cache_write_5m: 3.75,  cache_write_1h: 6,   cache_read: 0.30, output: 15   },
+  'claude sonnet 4':   { input: 3,    cache_write_5m: 3.75,  cache_write_1h: 6,   cache_read: 0.30, output: 15   },
+  'claude sonnet 3.7': { input: 3,    cache_write_5m: 3.75,  cache_write_1h: 6,   cache_read: 0.30, output: 15   },
+  'claude haiku 4.5':  { input: 1,    cache_write_5m: 1.25,  cache_write_1h: 2,   cache_read: 0.10, output: 5    },
+  'claude haiku 3.5':  { input: 0.80, cache_write_5m: 1,     cache_write_1h: 1.6, cache_read: 0.08, output: 4    },
+  'claude haiku 3':    { input: 0.25, cache_write_5m: 0.30,  cache_write_1h: 0.50,cache_read: 0.03, output: 1.25 },
+}
+
+function getPricePerMTok(model: string, tokenType: string): number {
+  const key = model.toLowerCase()
+    .replace(/\s*\(latest\)/g, '')
+    .replace(/\s*\(deprecated\)/g, '')
+    .trim()
+  const p = MODEL_PRICING[key]
+  if (!p) return 0
+  if (tokenType === 'input_no_cache')       return p.input
+  if (tokenType === 'input_cache_write_5m') return p.cache_write_5m
+  if (tokenType === 'input_cache_write_1h') return p.cache_write_1h
+  if (tokenType === 'input_cache_read')     return p.cache_read
+  if (tokenType === 'output')               return p.output
+  return 0
+}
+
 export function processRows(rows: RawRow[]): AppData {
   const userMap: Record<string, UserSummary> = {}
   const modelTotals: Record<string, number> = {}
@@ -44,7 +82,9 @@ export function processRows(rows: RawRow[]): AppData {
     const model = r.model === '--' ? 'Web Search' : r.model
     const date = r.usage_date_utc
     const isWS = r.cost_type === 'web_search'
-    const tokens = parseInt(r.tokens) || 0
+
+    const pricePerMTok = getPricePerMTok(r.model, r.token_type)
+    const tokens = pricePerMTok > 0 ? Math.round((cost / pricePerMTok) * 1_000_000) : 0
 
     totalCost += cost
     if (isWS) wsCost += cost; else tokenCost += cost
