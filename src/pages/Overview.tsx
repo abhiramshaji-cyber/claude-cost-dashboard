@@ -32,6 +32,19 @@ export default function Overview() {
 
   const avg = data.totalCost / data.users.length
 
+  const TOP_N = 12
+  const topForShare = data.users.slice(0, TOP_N)
+  const othersTotal = data.users.slice(TOP_N).reduce((s, u) => s + u.total, 0)
+  const shareData = [
+    ...topForShare.map(u => ({
+      name: u.displayName.split(' ')[0] + ' ' + (u.displayName.split(' ')[1]?.[0] ?? '') + '.',
+      fullName: u.displayName,
+      value: +u.total.toFixed(2),
+      pct: +((u.total / data.totalCost) * 100).toFixed(1),
+    })),
+    ...(othersTotal > 0 ? [{ name: 'Others', fullName: 'Others', value: +othersTotal.toFixed(2), pct: +((othersTotal / data.totalCost) * 100).toFixed(1) }] : []),
+  ]
+
   return (
     <div style={{ padding: '24px 32px 48px' }}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 14, marginBottom: 28 }}>
@@ -112,6 +125,68 @@ export default function Overview() {
               />
             </PieChart>
           </ResponsiveContainer>
+        </Panel>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
+        <Panel title="Cost Share by User — Donut">
+          <ResponsiveContainer width="100%" height={300}>
+            <PieChart>
+              <Pie
+                data={shareData}
+                dataKey="value"
+                nameKey="name"
+                cx="50%"
+                cy="50%"
+                innerRadius={75}
+                outerRadius={120}
+                paddingAngle={2}
+              >
+                {shareData.map((_, i) => (
+                  <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip
+                contentStyle={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8 }}
+                formatter={(v, _, entry) => [
+                  fmtExact(Number(v)) + ` — ${(entry as { payload: { pct: number } }).payload.pct}% of total`,
+                  (entry as { payload: { fullName: string } }).payload.fullName,
+                ]}
+              />
+              <Legend iconSize={10} wrapperStyle={{ fontSize: 11, color: 'var(--muted)', paddingTop: 8 }} />
+            </PieChart>
+          </ResponsiveContainer>
+        </Panel>
+
+        <Panel title="Cost Share by User — Breakdown">
+          <div style={{ overflowY: 'auto', maxHeight: 300 }}>
+            {shareData.map((u, i) => (
+              <div key={u.name} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                <div style={{
+                  width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
+                  background: CHART_COLORS[i % CHART_COLORS.length],
+                }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+                    <span style={{ fontSize: 12, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {u.name}
+                    </span>
+                    <span style={{ fontSize: 12, color: 'var(--muted)', flexShrink: 0, marginLeft: 8 }}>
+                      {u.pct}% · {fmtExact(u.value)}
+                    </span>
+                  </div>
+                  <div style={{ height: 4, borderRadius: 2, background: 'var(--surface2)', overflow: 'hidden' }}>
+                    <div style={{
+                      height: '100%',
+                      width: `${u.pct}%`,
+                      background: CHART_COLORS[i % CHART_COLORS.length],
+                      borderRadius: 2,
+                    }} />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </Panel>
       </div>
 
